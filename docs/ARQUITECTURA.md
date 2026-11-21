@@ -86,7 +86,7 @@ simulador-circuitos/
 | `C` | Capacitor | capacitancia | F | 2 |
 | `L` | Inductor | inductancia | H | 2 |
 | `V` | Fuente de voltaje DC | voltaje | V | 2 (`n1` = +) |
-| `I` | Fuente de corriente DC | corriente | A | 2 (sale por `n1`) |
+| `I` | Fuente de corriente DC | corriente | A | 2 (flecha de `n1` hacia `n2`) |
 | `VAC` | Fuente de voltaje AC | amplitud (+ `phase` en grados) | V | 2 (`n1` = +) |
 | `GND` | Tierra | — | — | 1 |
 
@@ -149,7 +149,11 @@ Regla: dos puntos son el **mismo nodo eléctrico** si tienen las mismas coordena
 ### 5.5 Convención de signos
 
 - Corriente **positiva** = fluye de `n1` hacia `n2` *por dentro* del componente.
+- Voltaje del componente = `V(n1) − V(n2)`.
+- Potencia = voltaje × corriente. **Positiva = el componente absorbe** energía; **negativa = la entrega**. En todo circuito la suma de potencias debe dar 0 (sirve para verificar el motor).
 - Fuente de voltaje: `n1` es el terminal **+**. Una fuente que entrega potencia queda con corriente negativa (estándar SPICE).
+- Fuente de corriente: entrega `value` amperios que circulan por dentro de la fuente de `n1` hacia `n2` (la flecha del símbolo apunta a `n2`).
+- En DC, la fuente `VAC` se trata como 0 V (su valor promedio), es decir, como un cortocircuito.
 
 ## 6. Motor de cálculo (resumen técnico)
 
@@ -197,10 +201,17 @@ Regla: dos puntos son el **mismo nodo eléctrico** si tienen las mismas coordena
 | 4 | Transitorio + gráficas | Curvas de carga/descarga RC y RL |
 | 5 | Pulido y validación | Ejemplos, manejo de errores, informe y sustentación |
 
-## 10. Decisiones abiertas (para discutir en grupo)
+## 10. Decisiones
+
+### Tomadas
+
+| Decisión | Resultado |
+|---|---|
+| Fuente de corriente `I` | **Se incluye** desde la fase 1 |
+| AC | **Una sola frecuencia**. El barrido (diagrama de Bode) queda como extra si sobra tiempo |
+| Mostrar resultados | **Tabla** de nodos y componentes. Mostrar valores sobre el dibujo al pasar el mouse queda para la fase 5 |
+
+### Pendientes
 
 - [ ] ¿Quién toma cada rol (P1–P4)?
-- [ ] ¿Hace falta la fuente de corriente `I` o basta con fuentes de voltaje?
-- [ ] ¿AC a una sola frecuencia o también barrido de frecuencia (diagrama de Bode)?
-- [ ] ¿Se mide con "voltímetro/amperímetro" sobre el dibujo o basta con la tabla de resultados?
 - [ ] ¿El profesor exige informe, diagramas UML o pruebas?
