@@ -112,6 +112,18 @@ Representa **el dibujo**: posiciones en la cuadrícula, no nodos eléctricos.
 
 Regla: dos puntos son el **mismo nodo eléctrico** si tienen las mismas coordenadas (por eso todo se ajusta a la cuadrícula).
 
+El editor garantiza esa regla al trazar cables (`Circuit.addWirePath`):
+
+| Situación al dibujar | Resultado |
+|---|---|
+| El extremo de un cable cae sobre un terminal o el extremo de otro cable | Conectado |
+| El extremo de un cable cae **en medio** de otro cable (forma de T) | El editor parte el cable existente en dos → conectado |
+| Un terminal o extremo existente queda en medio del cable nuevo | El editor parte el cable nuevo ahí → conectado |
+| Dos cables solo se **cruzan** (forma de X) | **No** conectados |
+| Un tramo nuevo queda encima de un cable existente | Se descarta (no se duplican cables) |
+
+Así la netlist (P2) nunca tiene que buscar puntos "en medio" de un cable: solo compara coordenadas iguales.
+
 ### 5.3 Netlist — lo que consume el motor (P2 → P3/P4)
 
 ```js

@@ -28,6 +28,52 @@
   fill: #212529;
 }
 
+/* Zona de clic invisible del cable (más gruesa que el trazo visible) */
+.wire-hit {
+  stroke: transparent;
+  stroke-width: 12;
+  cursor: pointer;
+}
+
+.wire-group.selected .wire {
+  stroke: #fd7e14;
+  stroke-width: 3;
+}
+
+.wire-preview {
+  fill: none;
+  stroke: #fd7e14;
+  stroke-width: 2;
+  stroke-dasharray: 6 4;
+  pointer-events: none;
+}
+
+/* Puntos de conexión (ver drawConnectionPoints en canvas.js) */
+.terminal {
+  fill: #fff;
+  stroke: #0d6efd;
+  stroke-width: 1.5;
+  cursor: crosshair;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+/* Al pasar el mouse por el lienzo aparecen todos los puntos donde se puede conectar */
+.circuit-canvas:hover .terminal {
+  opacity: 0.6;
+}
+
+.terminal:hover {
+  opacity: 1 !important;
+  fill: #0d6efd;
+}
+
+/* Terminal sin conectar: siempre visible en rojo */
+.terminal.free {
+  stroke: #dc3545;
+  opacity: 1;
+}
+
 /* Componentes: todos los trazos heredan estos estilos del grupo */
 .component {
   fill: none;

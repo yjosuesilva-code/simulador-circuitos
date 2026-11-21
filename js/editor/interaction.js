@@ -8,7 +8,13 @@
  * Se usan Pointer Events (pointerdown/move/up) en vez de mouse events porque
  * funcionan igual con mouse, pantalla táctil y lápiz.
  *
- * Atajos: R = rotar · Supr/Retroceso = eliminar · Esc = quitar selección
+ * Qué hace un clic según dónde cae (en este orden de prioridad):
+ *   terminal / punto de conexión → trazar un cable (arrastrando hasta el destino)
+ *   componente                   → seleccionar y mover
+ *   cable                        → seleccionar
+ *   zona vacía                   → quitar la selección
+ *
+ * Atajos: R = rotar · Supr/Retroceso = eliminar · Esc = quitar selección o cancelar cable
  */
 import { GRID_SIZE, HALF_LENGTH } from './geometry.js';
 
@@ -24,7 +30,7 @@ export class EditorController {
    * @param {import('../model/circuit.js').Circuit} deps.circuit
    * @param {import('./canvas.js').CircuitCanvas} deps.canvas
    * @param {HTMLElement} deps.toolbar contenedor con botones [data-type]
-   * @param {(component: object|null) => void} [deps.onSelectionChange]
+   * @param {(selection: {kind: 'component'|'wire', item: object}|null) => void} [deps.onSelectionChange]
    */
   constructor({ circuit, canvas, toolbar, onSelectionChange = () => {} }) {
     this.circuit = circuit;
@@ -32,8 +38,9 @@ export class EditorController {
     this.toolbar = toolbar;
     this.onSelectionChange = onSelectionChange;
 
+    /** id del componente o cable seleccionado (los id no se repiten entre ambos: R1, W1…) */
     this.selectedId = null;
-    /** Arrastre en curso: null | {mode:'move', ...} | {mode:'place', ...} */
+    /** Arrastre en curso: null | {mode:'move'} | {mode:'place'} | {mode:'wire'} */
     this.drag = null;
 
     this.bindCanvasEvents();
@@ -50,43 +57,56 @@ export class EditorController {
   }
 
   deleteSelected() {
-    if (!this.selectedId) return;
-    const id = this.selectedId;
+    const selection = this.getSelection();
+    if (!selection) return;
     this.select(null);
-    this.circuit.removeComponent(id);
+    if (selection.kind === 'wire') this.circuit.removeWire(selection.item.id);
+    else this.circuit.removeComponent(selection.item.id);
   }
 
   select(id) {
     if (this.selectedId === id) return;
     this.selectedId = id;
     this.render();
-    this.onSelectionChange(id ? this.circuit.getComponent(id) : null);
+    this.onSelectionChange(this.getSelection());
+  }
+
+  /** @returns {{kind: 'component'|'wire', item: object}|null} */
+  getSelection() {
+    if (!this.selectedId) return null;
+    const component = this.circuit.getComponent(this.selectedId);
+    if (component) return { kind: 'component', item: component };
+    const wire = this.circuit.getWire(this.selectedId);
+    return wire ? { kind: 'wire', item: wire } : null;
   }
 
   render() {
     this.canvas.render(this.circuit.toModel(), { selectedId: this.selectedId });
   }
 
-  // ---------- Mover componentes que ya están en el lienzo ----------
+  // ---------- Eventos del lienzo: mover componentes y trazar cables ----------
 
   bindCanvasEvents() {
     const svg = this.canvas.svg;
 
     svg.addEventListener('pointerdown', (event) => {
       if (event.button !== 0) return; // solo botón principal
-      const group = event.target.closest('.layer-components .component');
-      if (!group) {
+
+      const terminal = event.target.closest('.terminal');
+      const componentEl = event.target.closest('.layer-components .component');
+      const wireEl = event.target.closest('.wire-group');
+
+      if (terminal) {
+        this.startWire({ x: Number(terminal.dataset.x), y: Number(terminal.dataset.y) });
+      } else if (componentEl) {
+        this.startMove(componentEl.dataset.id, event);
+      } else if (wireEl) {
+        this.select(wireEl.dataset.id);
+        return; // los cables se seleccionan pero no se arrastran (paso 3)
+      } else {
         this.select(null); // clic en zona vacía
         return;
       }
-
-      const component = this.circuit.getComponent(group.dataset.id);
-      this.select(component.id);
-
-      // Se guarda la distancia entre el puntero y el centro del componente para
-      // que no "salte" al centro del cursor cuando empiece a moverse.
-      const point = this.canvas.toSvgPoint(event.clientX, event.clientY);
-      this.drag = { mode: 'move', id: component.id, dx: point.x - component.x, dy: point.y - component.y };
 
       // Captura: los siguientes eventos llegan al SVG aunque el puntero salga de él.
       svg.setPointerCapture(event.pointerId);
@@ -94,19 +114,75 @@ export class EditorController {
     });
 
     svg.addEventListener('pointermove', (event) => {
-      if (this.drag?.mode !== 'move') return;
       const point = this.canvas.toSvgPoint(event.clientX, event.clientY);
-      const { x, y } = this.clampToCanvas({ x: snap(point.x - this.drag.dx), y: snap(point.y - this.drag.dy) });
-      this.circuit.moveComponent(this.drag.id, x, y);
+      if (this.drag?.mode === 'move') this.continueMove(point);
+      else if (this.drag?.mode === 'wire') this.continueWire(point);
     });
 
-    const endMove = (event) => {
-      if (this.drag?.mode !== 'move') return;
-      this.drag = null;
+    svg.addEventListener('pointerup', (event) => {
+      if (this.drag?.mode === 'wire') this.finishWire();
+      if (this.drag?.mode === 'move') this.drag = null;
       if (svg.hasPointerCapture(event.pointerId)) svg.releasePointerCapture(event.pointerId);
-    };
-    svg.addEventListener('pointerup', endMove);
-    svg.addEventListener('pointercancel', endMove);
+    });
+
+    svg.addEventListener('pointercancel', () => this.cancelDrag());
+  }
+
+  cancelDrag() {
+    this.drag = null;
+    this.canvas.hideGhost();
+  }
+
+  // --- Mover ---
+
+  startMove(id, event) {
+    const component = this.circuit.getComponent(id);
+    this.select(id);
+    // Se guarda la distancia entre el puntero y el centro del componente para
+    // que no "salte" al centro del cursor cuando empiece a moverse.
+    const point = this.canvas.toSvgPoint(event.clientX, event.clientY);
+    this.drag = { mode: 'move', id, dx: point.x - component.x, dy: point.y - component.y };
+  }
+
+  continueMove(point) {
+    const { x, y } = this.clampToCanvas({ x: snap(point.x - this.drag.dx), y: snap(point.y - this.drag.dy) });
+    this.circuit.moveComponent(this.drag.id, x, y);
+  }
+
+  // --- Trazar cables ---
+
+  startWire(start) {
+    this.select(null);
+    // verticalFirst: orientación del primer tramo de la L. Se decide con el primer
+    // movimiento claro del usuario (como en KiCad): si arranca hacia abajo, el
+    // cable baja primero; si arranca hacia un lado, avanza primero en horizontal.
+    this.drag = { mode: 'wire', start, end: start, verticalFirst: null };
+  }
+
+  continueWire(point) {
+    const { start } = this.drag;
+    const end = this.clampToCanvas({ x: snap(point.x), y: snap(point.y) }, 0);
+    const dx = Math.abs(end.x - start.x);
+    const dy = Math.abs(end.y - start.y);
+
+    if (dx === 0 && dy === 0) this.drag.verticalFirst = null;      // volvió al inicio: se decide de nuevo
+    else if (this.drag.verticalFirst === null) this.drag.verticalFirst = dy > dx;
+
+    this.drag.end = end;
+    this.canvas.showWirePreview(this.wirePath());
+  }
+
+  finishWire() {
+    const points = this.wirePath();
+    this.cancelDrag();
+    this.circuit.addWirePath(points); // si inicio = fin no crea nada
+  }
+
+  /** Puntos del cable en L: [inicio, codo, fin]. Si están alineados, el codo coincide y se descarta. */
+  wirePath() {
+    const { start, end, verticalFirst } = this.drag;
+    const elbow = verticalFirst ? { x: start.x, y: end.y } : { x: end.x, y: start.y };
+    return [start, elbow, end];
   }
 
   // ---------- Agregar componentes desde la barra ----------
@@ -175,11 +251,12 @@ export class EditorController {
     return spot;
   }
 
-  clampToCanvas({ x, y }) {
+  /** Limita un punto al área del lienzo, dejando `margin` px libres en el borde. */
+  clampToCanvas({ x, y }, margin = EDGE_MARGIN) {
     const { width, height } = this.canvas.svg.viewBox.baseVal;
     return {
-      x: Math.min(Math.max(x, EDGE_MARGIN), width - EDGE_MARGIN),
-      y: Math.min(Math.max(y, EDGE_MARGIN), height - EDGE_MARGIN),
+      x: Math.min(Math.max(x, margin), width - margin),
+      y: Math.min(Math.max(y, margin), height - margin),
     };
   }
 
@@ -189,6 +266,10 @@ export class EditorController {
     document.addEventListener('keydown', (event) => {
       // No interferir cuando el usuario escribe en un campo de texto.
       if (event.target.closest('input, textarea, select, [contenteditable]')) return;
+      if (event.key === 'Escape' && this.drag?.mode === 'wire') {
+        this.cancelDrag(); // cancelar el cable que se está trazando
+        return;
+      }
       if (!this.selectedId) return;
 
       switch (event.key) {

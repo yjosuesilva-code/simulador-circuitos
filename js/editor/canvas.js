@@ -15,8 +15,9 @@ export class CircuitCanvas {
     this.wireLayer = svgElement('g', { class: 'layer-wires' });
     this.componentLayer = svgElement('g', { class: 'layer-components' });
     this.labelLayer = svgElement('g', { class: 'layer-labels' });
+    this.terminalLayer = svgElement('g', { class: 'layer-terminals' });
     this.ghostLayer = svgElement('g', { class: 'layer-ghost' });
-    this.svg.append(this.wireLayer, this.componentLayer, this.labelLayer, this.ghostLayer);
+    this.svg.append(this.wireLayer, this.componentLayer, this.labelLayer, this.terminalLayer, this.ghostLayer);
   }
 
   /** Fondo de puntos con <pattern>: se dibuja una sola celda y SVG la repite. */
@@ -41,13 +42,11 @@ export class CircuitCanvas {
     this.wireLayer.replaceChildren();
     this.componentLayer.replaceChildren();
     this.labelLayer.replaceChildren();
+    this.terminalLayer.replaceChildren();
 
     for (const wire of model.wires) {
-      this.wireLayer.appendChild(svgElement('line', {
-        class: 'wire', x1: wire.from.x, y1: wire.from.y, x2: wire.to.x, y2: wire.to.y,
-      }));
+      this.wireLayer.appendChild(this.createWireElement(wire, wire.id === selectedId));
     }
-    this.drawJunctions(model);
 
     for (const component of model.components) {
       const selected = component.id === selectedId;
@@ -55,6 +54,26 @@ export class CircuitCanvas {
       const label = createLabelElement(component);
       if (label) this.labelLayer.appendChild(label);
     }
+
+    this.drawConnectionPoints(model);
+  }
+
+  /**
+   * Cable = línea visible + línea invisible más gruesa (zona de clic), igual que
+   * el rectángulo invisible de los componentes.
+   */
+  createWireElement(wire, selected) {
+    const coords = { x1: wire.from.x, y1: wire.from.y, x2: wire.to.x, y2: wire.to.y };
+    const group = svgElement('g', { class: `wire-group${selected ? ' selected' : ''}`, 'data-id': wire.id });
+    group.append(svgElement('line', { class: 'wire-hit', ...coords }), svgElement('line', { class: 'wire', ...coords }));
+    return group;
+  }
+
+  /** Vista previa del cable mientras se traza (tramos en forma de L). */
+  showWirePreview(points) {
+    this.ghostLayer.replaceChildren(svgElement('polyline', {
+      class: 'wire-preview', points: points.map((p) => `${p.x},${p.y}`).join(' '),
+    }));
   }
 
   /** Vista previa semitransparente mientras se arrastra un componente desde la barra. */
@@ -67,19 +86,27 @@ export class CircuitCanvas {
   }
 
   /**
-   * Punto de unión donde se encuentran 3 o más extremos (cables o terminales).
-   * Es la convención de los diagramas eléctricos para indicar "aquí hay conexión".
+   * Dibuja los puntos de conexión según cuántos extremos (cables o terminales) coinciden:
+   *   1     → terminal suelto: punto rojo, avisa que algo quedó sin conectar
+   *   2     → conexión normal: punto invisible (aparece al pasar el mouse por el lienzo)
+   *   3 o + → unión: punto negro, convención de los diagramas para "aquí hay empalme"
+   * Todos sirven como inicio para trazar un cable (data-x, data-y).
    */
-  drawJunctions(model) {
+  drawConnectionPoints(model) {
     const count = new Map();
     const add = (p) => count.set(`${p.x},${p.y}`, (count.get(`${p.x},${p.y}`) ?? 0) + 1);
     model.wires.forEach((w) => { add(w.from); add(w.to); });
-    model.components.forEach((c) => c.terminals?.forEach(add));
+    model.components.forEach((c) => c.terminals.forEach(add));
 
     for (const [key, n] of count) {
-      if (n < 3) continue;
       const [x, y] = key.split(',').map(Number);
-      this.wireLayer.appendChild(svgElement('circle', { class: 'junction', cx: x, cy: y, r: 3.5 }));
+      if (n >= 3) {
+        this.wireLayer.appendChild(svgElement('circle', { class: 'junction', cx: x, cy: y, r: 3.5 }));
+      }
+      const state = n === 1 ? 'free' : 'connected';
+      this.terminalLayer.appendChild(svgElement('circle', {
+        class: `terminal ${state}`, cx: x, cy: y, r: 5, 'data-x': x, 'data-y': y,
+      }));
     }
   }
 

@@ -46,10 +46,10 @@ function simulateDC(circuit) {
   }
 }
 
-/** Habilita Rotar/Eliminar solo cuando hay un componente seleccionado. */
-function updateSelectionButtons(component) {
-  dom.deleteButton.disabled = !component;
-  dom.rotateButton.disabled = !component || component.type === 'GND';
+/** Eliminar: con cualquier selección. Rotar: solo componentes (la tierra no rota). */
+function updateSelectionButtons(selection) {
+  dom.deleteButton.disabled = !selection;
+  dom.rotateButton.disabled = selection?.kind !== 'component' || selection.item.type === 'GND';
 }
 
 async function init() {
