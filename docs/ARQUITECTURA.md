@@ -196,6 +196,15 @@ Así la netlist (P2) nunca tiene que buscar puntos "en medio" de un cable: solo 
 
 `main.js` e `index.html` se integran entre todos.
 
+### Estado del módulo P1 (editor) — completo
+
+- Agregar componentes (arrastrar o clic), mover con ajuste a cuadrícula, rotar, eliminar.
+- Trazar cables en L desde los terminales, con empalmes en T; seleccionar y eliminar cables.
+- Al mover o rotar, los cables se reacomodan en L; al soltar un terminal sobre un cable, se conecta.
+- No se permite encimar componentes; deshacer/rehacer (patrón Memento, 100 pasos).
+- Para P2: `model/circuit.js` ya existe (lo creó P1). Faltan validaciones, panel de propiedades y guardar/cargar.
+- Pendientes menores: las etiquetas pueden quedar pisadas por otro símbolo; los cables no se pueden arrastrar (se borran y se vuelven a trazar).
+
 ## 8. Flujo de trabajo con Git
 
 - `main` siempre funciona. **Nadie hace push directo a `main`.**
