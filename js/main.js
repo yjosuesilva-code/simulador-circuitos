@@ -1,14 +1,16 @@
 /**
  * Punto de entrada: conecta las capas.
  *
- *   CircuitModel ──withTerminals──► dibujo (canvas.js)
- *        │
- *        └──buildNetlist──► Netlist ──solveDC──► Resultados ──► tabla (results.js)
+ *   Circuit (modelo) ◄──── EditorController ◄──── mouse / teclado
+ *        │  onChange           │
+ *        │                     └──► CircuitCanvas (dibujo)
+ *        └──toModel──► buildNetlist ──► solveDC ──► tabla de resultados
  *
  * Este archivo solo coordina; no contiene lógica de dibujo ni de cálculo.
  */
-import { withTerminals } from './editor/geometry.js';
+import { Circuit } from './model/circuit.js';
 import { CircuitCanvas } from './editor/canvas.js';
+import { EditorController } from './editor/interaction.js';
 import { buildNetlist } from './model/netlist.js';
 import { solveDC } from './solver/dc.js';
 import { renderDCResults, renderError } from './ui/results.js';
@@ -17,25 +19,25 @@ const EXAMPLE_URL = 'examples/divisor-voltaje.json';
 
 const dom = {
   svg: document.getElementById('circuit-canvas'),
+  toolbar: document.getElementById('toolbar'),
   results: document.getElementById('results'),
   circuitName: document.getElementById('circuit-name'),
   simulateButton: document.getElementById('btn-simulate-dc'),
+  rotateButton: document.getElementById('btn-rotate'),
+  deleteButton: document.getElementById('btn-delete'),
 };
 
-const canvas = new CircuitCanvas(dom.svg);
-let model = null;
+const RESULTS_HINT = '<p class="text-body-secondary mb-0">Pulsa <strong>Simular DC</strong> para ver los resultados.</p>';
 
 async function loadExample(url) {
   const response = await fetch(url);
   if (!response.ok) throw new Error(`No se pudo cargar ${url} (HTTP ${response.status})`);
-  const json = await response.json();
-  dom.circuitName.textContent = json.name ?? 'Circuito';
-  return withTerminals(json);
+  return response.json();
 }
 
-function simulateDC() {
+function simulateDC(circuit) {
   try {
-    const netlist = buildNetlist(model);
+    const netlist = buildNetlist(circuit.toModel());
     const result = solveDC(netlist);
     renderDCResults(dom.results, netlist, result);
   } catch (error) {
@@ -44,12 +46,30 @@ function simulateDC() {
   }
 }
 
+/** Habilita Rotar/Eliminar solo cuando hay un componente seleccionado. */
+function updateSelectionButtons(component) {
+  dom.deleteButton.disabled = !component;
+  dom.rotateButton.disabled = !component || component.type === 'GND';
+}
+
 async function init() {
   try {
-    model = await loadExample(EXAMPLE_URL);
-    canvas.render(model);
+    const json = await loadExample(EXAMPLE_URL);
+    dom.circuitName.textContent = json.name ?? 'Circuito';
+
+    const circuit = new Circuit(json);
+    const canvas = new CircuitCanvas(dom.svg);
+    const editor = new EditorController({
+      circuit, canvas, toolbar: dom.toolbar, onSelectionChange: updateSelectionButtons,
+    });
+
+    // Si el circuito cambia, los resultados mostrados ya no corresponden.
+    circuit.onChange(() => { dom.results.innerHTML = RESULTS_HINT; });
+
+    dom.simulateButton.addEventListener('click', () => simulateDC(circuit));
+    dom.rotateButton.addEventListener('click', () => editor.rotateSelected());
+    dom.deleteButton.addEventListener('click', () => editor.deleteSelected());
     dom.simulateButton.disabled = false;
-    dom.simulateButton.addEventListener('click', simulateDC);
   } catch (error) {
     console.error(error);
     renderError(dom.results, error);

@@ -19,20 +19,23 @@
   <main class="container-fluid py-3">
     <div class="row g-3">
 
-      <!-- Barra de componentes (P1: hacerla funcional con arrastrar y soltar) -->
+      <!-- Barra de componentes: arrastrar al lienzo o hacer clic -->
       <aside class="col-12 col-lg-2">
         <div class="card shadow-sm">
           <div class="card-header fw-semibold">Componentes</div>
           <div class="list-group list-group-flush" id="toolbar">
-            <button class="list-group-item list-group-item-action" disabled>Resistencia</button>
-            <button class="list-group-item list-group-item-action" disabled>Capacitor</button>
-            <button class="list-group-item list-group-item-action" disabled>Inductor</button>
-            <button class="list-group-item list-group-item-action" disabled>Fuente DC</button>
-            <button class="list-group-item list-group-item-action" disabled>Fuente AC</button>
-            <button class="list-group-item list-group-item-action" disabled>Fuente de corriente</button>
-            <button class="list-group-item list-group-item-action" disabled>Tierra</button>
+            <button class="list-group-item list-group-item-action toolbar-item" data-type="R">Resistencia</button>
+            <button class="list-group-item list-group-item-action toolbar-item" data-type="C">Capacitor</button>
+            <button class="list-group-item list-group-item-action toolbar-item" data-type="L">Inductor</button>
+            <button class="list-group-item list-group-item-action toolbar-item" data-type="V">Fuente DC</button>
+            <button class="list-group-item list-group-item-action toolbar-item" data-type="VAC">Fuente AC</button>
+            <button class="list-group-item list-group-item-action toolbar-item" data-type="I">Fuente de corriente</button>
+            <button class="list-group-item list-group-item-action toolbar-item" data-type="GND">Tierra</button>
           </div>
-          <div class="card-footer small text-body-secondary">Edición disponible en la fase 2</div>
+          <div class="card-footer small text-body-secondary">
+            Arrastra un componente al lienzo.<br>
+            <kbd>R</kbd> rotar · <kbd>Supr</kbd> eliminar · <kbd>Esc</kbd> deseleccionar
+          </div>
         </div>
       </aside>
 
@@ -41,7 +44,11 @@
         <div class="card shadow-sm h-100">
           <div class="card-header d-flex justify-content-between align-items-center">
             <span class="fw-semibold">Circuito</span>
-            <button class="btn btn-primary btn-sm" id="btn-simulate-dc" disabled>▶ Simular DC</button>
+            <div class="d-flex gap-2">
+              <button class="btn btn-outline-secondary btn-sm" id="btn-rotate" disabled title="Rotar (R)">⟳ Rotar</button>
+              <button class="btn btn-outline-danger btn-sm" id="btn-delete" disabled title="Eliminar (Supr)">✕ Eliminar</button>
+              <button class="btn btn-primary btn-sm" id="btn-simulate-dc" disabled>▶ Simular DC</button>
+            </div>
           </div>
           <div class="card-body p-0">
             <svg id="circuit-canvas" class="circuit-canvas" viewBox="0 0 600 400"

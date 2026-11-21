@@ -1,6 +1,9 @@
 /* ===== Lienzo del circuito ===== */
 
 .circuit-canvas {
+  /* Evita que el navegador desplace la página mientras se arrastra con el dedo */
+  touch-action: none;
+  user-select: none;
   display: block;
   width: 100%;
   height: auto;
@@ -40,6 +43,44 @@
 
 .component-GND {
   stroke: #212529;
+}
+
+/* Zona de clic invisible (ver createHitArea en components.js) */
+.component .hit-area {
+  fill: transparent;
+  stroke: none;
+}
+
+.layer-components .component {
+  cursor: grab;
+}
+
+.layer-components .component:active {
+  cursor: grabbing;
+}
+
+/* Componente seleccionado: resaltado con un halo */
+.component.selected {
+  stroke: #fd7e14;
+}
+
+.component.selected .hit-area {
+  fill: rgba(253, 126, 20, 0.08);
+  stroke: rgba(253, 126, 20, 0.6);
+  stroke-width: 1;
+  stroke-dasharray: 4 3;
+}
+
+/* Vista previa al arrastrar desde la barra */
+.component.ghost {
+  opacity: 0.45;
+  pointer-events: none;
+}
+
+.toolbar-item {
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
 }
 
 .component-label {
