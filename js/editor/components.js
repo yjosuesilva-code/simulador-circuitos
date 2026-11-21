@@ -95,15 +95,17 @@ function createHitArea(type) {
 /**
  * Grupo SVG de un componente, ya ubicado y rotado en el lienzo.
  * @param {object} component
- * @param {{selected?: boolean, ghost?: boolean}} options
+ * @param {{selected?: boolean, ghost?: boolean, invalid?: boolean}} options
+ *        invalid: está encima de otro componente (se dibuja en rojo)
  */
-export function createComponentElement(component, { selected = false, ghost = false } = {}) {
+export function createComponentElement(component, { selected = false, ghost = false, invalid = false } = {}) {
   const draw = SYMBOLS[component.type];
   if (!draw) throw new Error(`No hay símbolo para el tipo "${component.type}"`);
 
   const classes = ['component', `component-${component.type}`];
   if (selected) classes.push('selected');
   if (ghost) classes.push('ghost');
+  if (invalid) classes.push('invalid');
 
   const group = svgElement('g', {
     class: classes.join(' '),

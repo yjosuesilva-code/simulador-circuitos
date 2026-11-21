@@ -117,6 +117,17 @@
   stroke-dasharray: 4 3;
 }
 
+/* Encimado sobre otro componente mientras se arrastra: al soltar vuelve a su lugar */
+.component.invalid,
+.component.selected.invalid {
+  stroke: #dc3545;
+}
+
+.component.invalid .hit-area {
+  fill: rgba(220, 53, 69, 0.1);
+  stroke: rgba(220, 53, 69, 0.7);
+}
+
 /* Vista previa al arrastrar desde la barra */
 .component.ghost {
   opacity: 0.45;

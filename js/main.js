@@ -25,6 +25,8 @@ const dom = {
   simulateButton: document.getElementById('btn-simulate-dc'),
   rotateButton: document.getElementById('btn-rotate'),
   deleteButton: document.getElementById('btn-delete'),
+  undoButton: document.getElementById('btn-undo'),
+  redoButton: document.getElementById('btn-redo'),
 };
 
 const RESULTS_HINT = '<p class="text-body-secondary mb-0">Pulsa <strong>Simular DC</strong> para ver los resultados.</p>';
@@ -63,12 +65,18 @@ async function init() {
       circuit, canvas, toolbar: dom.toolbar, onSelectionChange: updateSelectionButtons,
     });
 
-    // Si el circuito cambia, los resultados mostrados ya no corresponden.
-    circuit.onChange(() => { dom.results.innerHTML = RESULTS_HINT; });
+    circuit.onChange(() => {
+      // Si el circuito cambia, los resultados mostrados ya no corresponden.
+      dom.results.innerHTML = RESULTS_HINT;
+      dom.undoButton.disabled = !circuit.canUndo;
+      dom.redoButton.disabled = !circuit.canRedo;
+    });
 
     dom.simulateButton.addEventListener('click', () => simulateDC(circuit));
     dom.rotateButton.addEventListener('click', () => editor.rotateSelected());
     dom.deleteButton.addEventListener('click', () => editor.deleteSelected());
+    dom.undoButton.addEventListener('click', () => editor.undo());
+    dom.redoButton.addEventListener('click', () => editor.redo());
     dom.simulateButton.disabled = false;
   } catch (error) {
     console.error(error);

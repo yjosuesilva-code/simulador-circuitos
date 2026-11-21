@@ -15,6 +15,7 @@
  *   zona vacía                   → quitar la selección
  *
  * Atajos: R = rotar · Supr/Retroceso = eliminar · Esc = quitar selección o cancelar cable
+ *         Ctrl+Z = deshacer · Ctrl+Y o Ctrl+Shift+Z = rehacer
  */
 import { GRID_SIZE, HALF_LENGTH } from './geometry.js';
 
@@ -46,8 +47,28 @@ export class EditorController {
     this.bindCanvasEvents();
     this.bindToolbarEvents();
     this.bindKeyboard();
-    circuit.onChange(() => this.render());
+    circuit.onChange(() => this.handleCircuitChange());
     this.render();
+  }
+
+  /**
+   * Tras cualquier cambio: redibujar y refrescar la selección. Después de deshacer,
+   * lo seleccionado puede haber dejado de existir (p. ej. se deshizo su creación).
+   */
+  handleCircuitChange() {
+    if (this.selectedId && !this.getSelection()) this.selectedId = null;
+    this.render();
+    this.onSelectionChange(this.getSelection());
+  }
+
+  undo() {
+    this.cancelDrag();
+    this.circuit.undo();
+  }
+
+  redo() {
+    this.cancelDrag();
+    this.circuit.redo();
   }
 
   // ---------- Acciones públicas (también las usan los botones Rotar/Eliminar) ----------
@@ -81,7 +102,14 @@ export class EditorController {
   }
 
   render() {
-    this.canvas.render(this.circuit.toModel(), { selectedId: this.selectedId });
+    // Mientras se arrastra, si el componente queda encima de otro se marca en rojo:
+    // al soltarlo ahí volverá a su posición original.
+    let invalidId = null;
+    if (this.drag?.mode === 'move') {
+      const component = this.circuit.getComponent(this.drag.id);
+      if (component && this.circuit.overlaps(component)) invalidId = component.id;
+    }
+    this.canvas.render(this.circuit.toModel(), { selectedId: this.selectedId, invalidId });
   }
 
   // ---------- Eventos del lienzo: mover componentes y trazar cables ----------
@@ -121,16 +149,24 @@ export class EditorController {
 
     svg.addEventListener('pointerup', (event) => {
       if (this.drag?.mode === 'wire') this.finishWire();
-      if (this.drag?.mode === 'move') this.drag = null;
+      if (this.drag?.mode === 'move') this.finishMove();
       if (svg.hasPointerCapture(event.pointerId)) svg.releasePointerCapture(event.pointerId);
     });
 
     svg.addEventListener('pointercancel', () => this.cancelDrag());
   }
 
+  /** Cancela cualquier arrastre en curso. Si se estaba moviendo un componente, vuelve a su lugar. */
   cancelDrag() {
+    const wasMoving = this.drag?.mode === 'move';
     this.drag = null;
     this.canvas.hideGhost();
+    if (wasMoving && this.circuit.dragState) {
+      // Se fuerza la posición original y se termina: endDrag la detecta como "sin cambios".
+      const original = this.circuit.dragState.base.components.find((c) => c.id === this.circuit.dragState.id);
+      this.circuit.dragTo(original.x, original.y);
+      this.circuit.endDrag();
+    }
   }
 
   // --- Mover ---
@@ -142,11 +178,17 @@ export class EditorController {
     // que no "salte" al centro del cursor cuando empiece a moverse.
     const point = this.canvas.toSvgPoint(event.clientX, event.clientY);
     this.drag = { mode: 'move', id, dx: point.x - component.x, dy: point.y - component.y };
+    this.circuit.startDrag(id);
   }
 
   continueMove(point) {
     const { x, y } = this.clampToCanvas({ x: snap(point.x - this.drag.dx), y: snap(point.y - this.drag.dy) });
-    this.circuit.moveComponent(this.drag.id, x, y);
+    this.circuit.dragTo(x, y);
+  }
+
+  finishMove() {
+    this.drag = null;
+    this.circuit.endDrag(); // si quedó encimado, el modelo lo devuelve a su lugar
   }
 
   // --- Trazar cables ---
@@ -203,7 +245,8 @@ export class EditorController {
         this.drag.moved = true;
         const point = this.canvas.toSvgPoint(event.clientX, event.clientY);
         if (this.canvas.contains(point)) {
-          this.drag.target = this.clampToCanvas({ x: snap(point.x), y: snap(point.y) });
+          // La vista previa se muestra donde realmente quedará: el lugar libre más cercano.
+          this.drag.target = this.nearestFreeSpot(type, { x: snap(point.x), y: snap(point.y) });
           this.canvas.showGhost({ id: '', type, rotation: 0, ...this.drag.target });
         } else {
           this.drag.target = null;
@@ -217,8 +260,8 @@ export class EditorController {
         this.drag = null;
         this.canvas.hideGhost();
 
-        if (target) this.place(type, target);              // soltado sobre el lienzo
-        else if (!moved) this.place(type, this.freeSpot()); // clic simple
+        if (target) this.place(type, target);                   // soltado sobre el lienzo
+        else if (!moved) this.place(type, this.freeSpot(type)); // clic simple
         // soltado fuera del lienzo: se cancela
       });
 
@@ -230,7 +273,7 @@ export class EditorController {
       // Accesibilidad: con teclado (Tab + Enter) no hay eventos de puntero, solo "click".
       // event.detail === 0 significa que el click no vino del mouse.
       button.addEventListener('click', (event) => {
-        if (event.detail === 0) this.place(type, this.freeSpot());
+        if (event.detail === 0) this.place(type, this.freeSpot(type));
       });
     }
   }
@@ -240,15 +283,33 @@ export class EditorController {
     this.select(component.id);
   }
 
-  /** Centro del lienzo; si está ocupado, avanza en diagonal hasta encontrar un lugar libre. */
-  freeSpot() {
+  /** Lugar libre más cercano al centro del lienzo (para el clic simple en la barra). */
+  freeSpot(type) {
     const { width, height } = this.canvas.svg.viewBox.baseVal;
-    let spot = { x: snap(width / 2), y: snap(height / 2) };
-    const occupied = ({ x, y }) => this.circuit.components.some((c) => c.x === x && c.y === y);
-    for (let i = 0; i < 20 && occupied(spot); i++) {
-      spot = this.clampToCanvas({ x: spot.x + 2 * GRID_SIZE, y: spot.y + 2 * GRID_SIZE });
+    return this.nearestFreeSpot(type, { x: snap(width / 2), y: snap(height / 2) });
+  }
+
+  /**
+   * Busca en "anillos" cada vez más grandes alrededor del punto deseado el primer lugar
+   * de la cuadrícula donde el componente no se encime con otro. Dentro de cada anillo
+   * se prueban primero los puntos más cercanos.
+   */
+  nearestFreeSpot(type, desired) {
+    const MAX_RINGS = 15;
+    for (let ring = 0; ring <= MAX_RINGS; ring++) {
+      const candidates = [];
+      for (let dx = -ring; dx <= ring; dx++) {
+        for (let dy = -ring; dy <= ring; dy++) {
+          if (Math.max(Math.abs(dx), Math.abs(dy)) !== ring) continue; // solo el borde del anillo
+          candidates.push(this.clampToCanvas({ x: desired.x + dx * GRID_SIZE, y: desired.y + dy * GRID_SIZE }));
+        }
+      }
+      candidates.sort((a, b) =>
+        Math.hypot(a.x - desired.x, a.y - desired.y) - Math.hypot(b.x - desired.x, b.y - desired.y));
+      const free = candidates.find((p) => this.circuit.isFree(type, p.x, p.y));
+      if (free) return free;
     }
-    return spot;
+    return desired; // lienzo lleno: se acepta encimado antes que perder el componente
   }
 
   /** Limita un punto al área del lienzo, dejando `margin` px libres en el borde. */
@@ -266,8 +327,15 @@ export class EditorController {
     document.addEventListener('keydown', (event) => {
       // No interferir cuando el usuario escribe en un campo de texto.
       if (event.target.closest('input, textarea, select, [contenteditable]')) return;
-      if (event.key === 'Escape' && this.drag?.mode === 'wire') {
-        this.cancelDrag(); // cancelar el cable que se está trazando
+      // Deshacer / rehacer (Cmd en Mac, Ctrl en Windows/Linux)
+      if (event.ctrlKey || event.metaKey) {
+        const key = event.key.toLowerCase();
+        if (key === 'z' && !event.shiftKey) { event.preventDefault(); this.undo(); }
+        else if (key === 'y' || (key === 'z' && event.shiftKey)) { event.preventDefault(); this.redo(); }
+        return;
+      }
+      if (event.key === 'Escape' && this.drag) {
+        this.cancelDrag(); // cancelar el cable o el movimiento en curso
         return;
       }
       if (!this.selectedId) return;

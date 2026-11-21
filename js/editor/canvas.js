@@ -36,9 +36,10 @@ export class CircuitCanvas {
   /**
    * Dibuja el circuito completo, reemplazando lo que hubiera.
    * @param {{components: Array, wires: Array}} model CircuitModel con terminales
-   * @param {{selectedId?: string|null}} view estado visual (qué está seleccionado)
+   * @param {{selectedId?: string|null, invalidId?: string|null}} view estado visual:
+   *        qué está seleccionado y qué componente está encimado (se marca en rojo)
    */
-  render(model, { selectedId = null } = {}) {
+  render(model, { selectedId = null, invalidId = null } = {}) {
     this.wireLayer.replaceChildren();
     this.componentLayer.replaceChildren();
     this.labelLayer.replaceChildren();
@@ -50,7 +51,8 @@ export class CircuitCanvas {
 
     for (const component of model.components) {
       const selected = component.id === selectedId;
-      this.componentLayer.appendChild(createComponentElement(component, { selected }));
+      const invalid = component.id === invalidId;
+      this.componentLayer.appendChild(createComponentElement(component, { selected, invalid }));
       const label = createLabelElement(component);
       if (label) this.labelLayer.appendChild(label);
     }
