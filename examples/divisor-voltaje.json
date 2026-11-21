@@ -1,0 +1,21 @@
+{
+  "name": "Divisor de voltaje",
+  "description": "Fuente de 12 V con R1 = 1 kΩ y R2 = 2 kΩ en serie. Esperado: V(R2) = 12·2k/(1k+2k) = 8 V, I = 12/3k = 4 mA.",
+  "components": [
+    { "id": "V1",   "type": "V",   "value": 12,   "x": 100, "y": 200, "rotation": 90 },
+    { "id": "R1",   "type": "R",   "value": 1000, "x": 200, "y": 120, "rotation": 0 },
+    { "id": "R2",   "type": "R",   "value": 2000, "x": 300, "y": 200, "rotation": 90 },
+    { "id": "GND1", "type": "GND",                "x": 200, "y": 300, "rotation": 0 }
+  ],
+  "wires": [
+    { "id": "W1", "from": { "x": 100, "y": 160 }, "to": { "x": 100, "y": 120 } },
+    { "id": "W2", "from": { "x": 100, "y": 120 }, "to": { "x": 160, "y": 120 } },
+    { "id": "W3", "from": { "x": 240, "y": 120 }, "to": { "x": 300, "y": 120 } },
+    { "id": "W4", "from": { "x": 300, "y": 120 }, "to": { "x": 300, "y": 160 } },
+    { "id": "W5", "from": { "x": 100, "y": 240 }, "to": { "x": 100, "y": 280 } },
+    { "id": "W6", "from": { "x": 100, "y": 280 }, "to": { "x": 200, "y": 280 } },
+    { "id": "W7", "from": { "x": 200, "y": 280 }, "to": { "x": 300, "y": 280 } },
+    { "id": "W8", "from": { "x": 300, "y": 240 }, "to": { "x": 300, "y": 280 } },
+    { "id": "W9", "from": { "x": 200, "y": 280 }, "to": { "x": 200, "y": 300 } }
+  ]
+}
