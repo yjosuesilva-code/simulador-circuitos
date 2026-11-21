@@ -1,0 +1,50 @@
+/* ===== Lienzo del circuito ===== */
+
+.circuit-canvas {
+  display: block;
+  width: 100%;
+  height: auto;
+  min-height: 360px;
+  background: #fff;
+  border-bottom-left-radius: var(--bs-card-inner-border-radius);
+  border-bottom-right-radius: var(--bs-card-inner-border-radius);
+}
+
+.grid-dot {
+  fill: #cfd4da;
+}
+
+/* Cables */
+.wire {
+  stroke: #212529;
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
+.junction {
+  fill: #212529;
+}
+
+/* Componentes: todos los trazos heredan estos estilos del grupo */
+.component {
+  fill: none;
+  stroke: #0d6efd;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.component .plate {
+  stroke-width: 3;
+}
+
+.component-GND {
+  stroke: #212529;
+}
+
+.component-label {
+  font-family: system-ui, sans-serif;
+  font-size: 12px;
+  fill: #495057;
+  user-select: none;
+}
