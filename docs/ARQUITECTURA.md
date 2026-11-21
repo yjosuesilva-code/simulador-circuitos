@@ -51,6 +51,7 @@ simulador-circuitos/
 ├── js/
 │   ├── main.js                  # Orquestador: conecta las capas (integración, todos)
 │   ├── editor/          (P1)
+│   │   ├── geometry.js          # Cuadrícula y posición de terminales (sin DOM, se puede probar sin navegador)
 │   │   ├── canvas.js            # Lienzo SVG, cuadrícula, zoom, selección
 │   │   ├── components.js        # Dibujo SVG de cada tipo de componente
 │   │   └── wires.js             # Trazado de cables entre terminales
