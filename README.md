@@ -18,6 +18,23 @@ HTML · CSS · JavaScript (ES Modules) · SVG · Bootstrap 5 · Chart.js
 
 > Abrir `index.html` con doble clic **no funciona**: los ES Modules requieren un servidor.
 
+## Uso del editor
+
+| Acción | Cómo |
+|---|---|
+| Agregar componente | Arrastrarlo desde la barra izquierda al lienzo (o clic: aparece en el centro) |
+| Mover | Arrastrar el componente; los cables lo siguen en forma de L |
+| Trazar cable | Arrastrar desde un terminal hasta el destino |
+| Seleccionar | Clic sobre un componente o cable |
+| Rotar | <kbd>R</kbd> o botón ⟳ |
+| Eliminar | <kbd>Supr</kbd> o botón ✕ |
+| Deshacer / rehacer | <kbd>Ctrl</kbd>+<kbd>Z</kbd> / <kbd>Ctrl</kbd>+<kbd>Y</kbd> o botones ↶ ↷ |
+| Cancelar | <kbd>Esc</kbd> (quita la selección o cancela el arrastre en curso) |
+
+- Los terminales **rojos** están sin conectar.
+- Un cable que termina en medio de otro (forma de T) se conecta; dos cables que solo se cruzan (forma de X) no.
+- Un componente no se puede soltar encima de otro: se marca en rojo y vuelve a su lugar.
+
 ## Documentación
 
 - [Arquitectura y contratos entre módulos](docs/ARQUITECTURA.md)
@@ -26,7 +43,7 @@ HTML · CSS · JavaScript (ES Modules) · SVG · Bootstrap 5 · Chart.js
 
 | Integrante | Módulo |
 |---|---|
-| _por definir_ | Editor visual |
+| Yilver Silva | Editor visual |
 | _por definir_ | Modelo y netlist |
 | _por definir_ | Motor DC y AC |
 | _por definir_ | Transitorio y resultados |

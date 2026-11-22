@@ -52,7 +52,8 @@ simulador-circuitos/
 │   ├── main.js                  # Orquestador: conecta las capas (integración, todos)
 │   ├── editor/          (P1)
 │   │   ├── geometry.js          # Cuadrícula y posición de terminales (sin DOM, se puede probar sin navegador)
-│   │   ├── canvas.js            # Lienzo SVG, cuadrícula, zoom, selección
+│   │   ├── canvas.js            # Dibuja el estado: cuadrícula, cables, componentes, selección
+│   │   ├── interaction.js       # Mouse/teclado → operaciones sobre Circuit (arrastrar, rotar, borrar)
 │   │   ├── components.js        # Dibujo SVG de cada tipo de componente
 │   │   └── wires.js             # Trazado de cables entre terminales
 │   ├── model/           (P2)
@@ -110,6 +111,18 @@ Representa **el dibujo**: posiciones en la cuadrícula, no nodos eléctricos.
 ```
 
 Regla: dos puntos son el **mismo nodo eléctrico** si tienen las mismas coordenadas (por eso todo se ajusta a la cuadrícula).
+
+El editor garantiza esa regla al trazar cables (`Circuit.addWirePath`):
+
+| Situación al dibujar | Resultado |
+|---|---|
+| El extremo de un cable cae sobre un terminal o el extremo de otro cable | Conectado |
+| El extremo de un cable cae **en medio** de otro cable (forma de T) | El editor parte el cable existente en dos → conectado |
+| Un terminal o extremo existente queda en medio del cable nuevo | El editor parte el cable nuevo ahí → conectado |
+| Dos cables solo se **cruzan** (forma de X) | **No** conectados |
+| Un tramo nuevo queda encima de un cable existente | Se descarta (no se duplican cables) |
+
+Así la netlist (P2) nunca tiene que buscar puntos "en medio" de un cable: solo compara coordenadas iguales.
 
 ### 5.3 Netlist — lo que consume el motor (P2 → P3/P4)
 
@@ -182,6 +195,15 @@ Regla: dos puntos son el **mismo nodo eléctrico** si tienen las mismas coordena
 | **P4** | Transitorio y resultados (`js/transient/`, `ui/results.js`) | Curvas RC/RL que coinciden con la solución analítica; tablas y gráficas |
 
 `main.js` e `index.html` se integran entre todos.
+
+### Estado del módulo P1 (editor) — completo
+
+- Agregar componentes (arrastrar o clic), mover con ajuste a cuadrícula, rotar, eliminar.
+- Trazar cables en L desde los terminales, con empalmes en T; seleccionar y eliminar cables.
+- Al mover o rotar, los cables se reacomodan en L; al soltar un terminal sobre un cable, se conecta.
+- No se permite encimar componentes; deshacer/rehacer (patrón Memento, 100 pasos).
+- Para P2: `model/circuit.js` ya existe (lo creó P1). Faltan validaciones, panel de propiedades y guardar/cargar.
+- Pendientes menores: las etiquetas pueden quedar pisadas por otro símbolo; los cables no se pueden arrastrar (se borran y se vuelven a trazar).
 
 ## 8. Flujo de trabajo con Git
 

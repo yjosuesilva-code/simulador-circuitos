@@ -82,16 +82,37 @@ const SYMBOLS = {
   ],
 };
 
-/** Grupo SVG de un componente, ya ubicado y rotado en el lienzo. */
-export function createComponentElement(component) {
+/**
+ * Rectángulo invisible que cubre el símbolo. Los trazos miden 2 px y serían muy
+ * difíciles de atrapar con el mouse; este rectángulo amplía la zona de clic.
+ */
+function createHitArea(type) {
+  return type === 'GND'
+    ? svgElement('rect', { class: 'hit-area', x: -14, y: -4, width: 28, height: 28 })
+    : svgElement('rect', { class: 'hit-area', x: -L, y: -16, width: 2 * L, height: 32 });
+}
+
+/**
+ * Grupo SVG de un componente, ya ubicado y rotado en el lienzo.
+ * @param {object} component
+ * @param {{selected?: boolean, ghost?: boolean, invalid?: boolean}} options
+ *        invalid: está encima de otro componente (se dibuja en rojo)
+ */
+export function createComponentElement(component, { selected = false, ghost = false, invalid = false } = {}) {
   const draw = SYMBOLS[component.type];
   if (!draw) throw new Error(`No hay símbolo para el tipo "${component.type}"`);
 
+  const classes = ['component', `component-${component.type}`];
+  if (selected) classes.push('selected');
+  if (ghost) classes.push('ghost');
+  if (invalid) classes.push('invalid');
+
   const group = svgElement('g', {
-    class: `component component-${component.type}`,
+    class: classes.join(' '),
     'data-id': component.id,
     transform: `translate(${component.x} ${component.y}) rotate(${component.rotation ?? 0})`,
   });
+  group.appendChild(createHitArea(component.type));
   draw().forEach((el) => group.appendChild(el));
   return group;
 }
